@@ -1,10 +1,18 @@
-#include "arduino_secrets.h"
 #include <WiFi.h>
-#include <BlynkSimpleEsp32.h>
+#include <PubSubClient.h>
+#include "arduino_secrets.h"
 
-char auth[] = BLYNK_AUTH_TOKEN;
-char ssid[] = "moto g35 5G_5931";
-char pass[] = "12345678";
+// credenciales wifi
+const char* ssid = "moto g35 5G_5931";
+const char* pass = "12345678";
+
+// Configuracion thingsboard
+const char* tb_server = IP_SERVIDOR; 
+const int tb_port = 1883;              
+const char* tb_token = TOKEN_THINGSBOARD; 
+
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 const int pinA = D2; 
 const int pinB = D3;
@@ -37,6 +45,32 @@ void IRAM_ATTR handleSensorA() {
   }
 }
 
+void setup_wifi() {
+  Serial.print("Conectando a la red WiFi: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, pass);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi conectado exitosamente");
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Conectando a ThingsBoard");
+    if (client.connect("ESP32_AccelerBike", tb_token, NULL)) {
+      Serial.println(" Conectado a ThingsBoard");
+    } else {
+      Serial.print(" Fallo en conexion, rc=");
+      Serial.print(client.state());
+      Serial.println(" intentando de nuevo en 5 segundos");
+      delay(5000);
+    }
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   
@@ -46,12 +80,17 @@ void setup() {
   
   attachInterrupt(digitalPinToInterrupt(pinA), handleSensorA, FALLING);
   
-  Blynk.begin(auth, ssid, pass);
-  Serial.println("Blynk connected and system ready!");
+  setup_wifi();
+  
+  client.setServer(tb_server, tb_port);
 }
 
 void loop() {
-  Blynk.run();
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
   unsigned long currentMillis = millis();
   if (currentMillis - lastBlinkTime >= blinkInterval) {
     lastBlinkTime = currentMillis;
@@ -69,8 +108,21 @@ void loop() {
 
     float distanceKm = (pulseCount * circumference) / 1000.0;
 
-    Blynk.virtualWrite(V1, speedKmh);
-    Blynk.virtualWrite(V2, distanceKm);
+    // creacion de payload JSON 
+    String payload = "{";
+    payload += "\"speedKmh\":";
+    payload += speedKmh;
+    payload += ",";
+    payload += "\"distanceKm\":";
+    payload += distanceKm;
+    payload += "}";
+
+    // publicacion de telemetria en thingsboard
+    client.publish("v1/devices/me/telemetry", payload.c_str());
+    
+    // imprimir por el puerto serie
+    Serial.print("Enviando datos: ");
+    Serial.println(payload);
     
     lastUpdate = millis();
   }
