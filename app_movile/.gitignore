@@ -21,6 +21,9 @@ migrate_working_dir/
 # Visual Code
 .vscode/
 
+# Data
+config.json
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id

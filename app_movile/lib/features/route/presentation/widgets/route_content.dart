@@ -50,24 +50,17 @@ Widget progressInfo(
 }
 
 
-Widget buttons(BuildContext context) {
+Widget buttons(BuildContext context, {required VoidCallback onStop, bool isLoading = false}) {
+  // Hacer que ambos botones al momento de hacer clic den alguna señal de si funciono o no, puede ser un snack bar o algo similar
   return Row(
     children: [
-    // Botón Pause
       Expanded(
         child: FilledButton.icon(
-          onPressed: () {
-          },
+          // Cuando se hace clic en pausar despues ya no se puede hacer que vuelva a funcionar el cronometro
+          onPressed: () {},
           icon: const Icon(Icons.pause, color: Colors.black),
-          label: const Text(
-            'Pause',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-
+          label: const Text('Pause',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFF00E676),
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -76,29 +69,22 @@ Widget buttons(BuildContext context) {
         ),
       ),
       const SizedBox(width: 16),
-                            
-      // Botón Stop Ride
       Expanded(
         child: FilledButton.icon(
-        onPressed: () {
-          Navigator.pop(context);
-        },
-        icon: const Icon(Icons.stop, color: AppColors.darkRed),
-        label: const Text(
-          'Stop Ride',
-          style: TextStyle(
-            color: AppColors.darkRed,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+          onPressed: isLoading ? null : onStop,
+          icon: isLoading
+              ? const SizedBox(
+                  width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.stop, color: AppColors.darkRed),
+          label: Text(isLoading ? 'Enviando...' : 'Stop Ride',
+              style: const TextStyle(color: AppColors.darkRed, fontWeight: FontWeight.bold, fontSize: 18)),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.softRed,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.softRed, 
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
       ),
-    ),
     ],
   );
 }
