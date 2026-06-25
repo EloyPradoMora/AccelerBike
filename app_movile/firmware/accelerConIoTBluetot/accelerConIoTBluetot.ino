@@ -8,7 +8,6 @@ BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 
-// UUIDs para el Servicio y la Caracteristica (necesitaras estos en Flutter)
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
@@ -62,9 +61,13 @@ void setup() {
   
   attachInterrupt(digitalPinToInterrupt(pinA), handleSensorA, FALLING);
 
-  // Inicializacion del dispositivo BLE
   BLEDevice::init("ESP32_AccelerBike");
   
+  BLESecurity *pSecurity = new BLESecurity();
+  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
+  pSecurity->setCapability(ESP_IO_CAP_NONE);
+  pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
 
@@ -76,15 +79,17 @@ void setup() {
                       BLECharacteristic::PROPERTY_NOTIFY
                     );
 
-  // Descriptor necesario para que el cliente (Flutter) pueda suscribirse a las notificaciones
   pCharacteristic->addDescriptor(new BLE2902());
 
   pService->start();
 
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(false);
-  pAdvertising->setMinPreferred(0x0); 
+  
+
+  pAdvertising->setScanResponse(true); 
+  pAdvertising->setMinPreferred(0x06);
+  
   BLEDevice::startAdvertising();
   
   Serial.println("BLE iniciado. Dispositivo listo para emparejar.");
@@ -92,10 +97,16 @@ void setup() {
 
 void loop() {
   unsigned long currentMillis = millis();
-  if (currentMillis - lastBlinkTime >= blinkInterval) {
-    lastBlinkTime = currentMillis;
-    ledState = !ledState;
-    digitalWrite(ledPin, ledState);
+
+  if (deviceConnected) {
+    if (currentMillis - lastBlinkTime >= blinkInterval) {
+      lastBlinkTime = currentMillis;
+      ledState = !ledState;
+      digitalWrite(ledPin, ledState);
+    }
+  } else {
+    ledState = LOW;
+    digitalWrite(ledPin, LOW);
   }
 
   static unsigned long lastUpdate = 0;
@@ -116,7 +127,6 @@ void loop() {
     payload += String(distanceKm, 2);
     payload += "}";
 
-    // Solo enviamos datos si hay un dispositivo conectado escuchando
     if (deviceConnected) {
         pCharacteristic->setValue(payload.c_str());
         pCharacteristic->notify();
@@ -127,15 +137,13 @@ void loop() {
     lastUpdate = millis();
   }
 
-  // Manejo de desconexion
   if (!deviceConnected && oldDeviceConnected) {
-      delay(500); 
+      delay(500);
       pServer->startAdvertising(); 
       Serial.println("Dispositivo desconectado. Re-iniciando advertising...");
       oldDeviceConnected = deviceConnected;
   }
   
-  // Manejo de conexion
   if (deviceConnected && !oldDeviceConnected) {
       oldDeviceConnected = deviceConnected;
       Serial.println("Dispositivo conectado.");
