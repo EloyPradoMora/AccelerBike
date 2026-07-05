@@ -4,20 +4,49 @@
 #include <BLE2902.h>
 
 BLEServer* pServer = NULL;
-BLECharacteristic* pCharacteristic = NULL;
+BLECharacteristic* pCharacteristicTX = NULL; // Para enviar datos a la app
+BLECharacteristic* pCharacteristicRX = NULL; // Para recibir datos de la app
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define SERVICE_UUID           "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID_TX "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define CHARACTERISTIC_UUID_RX "beb5483e-36e1-4688-b7f5-ea07361b26a9" // UUID para recibir el aro
+
+float currentAro = 0.0; 
+float wheelCircumference = 0.0;
+bool waitingForAro = true;
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
+      waitingForAro = true;
     };
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
+    }
+};
+
+class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pChar) {
+      std::string rxValue = pChar->getValue();
+      if (rxValue.length() > 0) {
+        String valueStr = String(rxValue.c_str());
+        float newAro = valueStr.toFloat();
+        
+        if (newAro > 0) {
+          currentAro = newAro;
+          wheelCircumference = currentAro * 0.0254 * PI;
+          waitingForAro = false;
+          
+          Serial.print("Nuevo aro recibido: ");
+          Serial.print(currentAro);
+          Serial.print("\" -> Circunferencia: ");
+          Serial.print(wheelCircumference);
+          Serial.println(" m");
+        }
+      }
     }
 };
 
@@ -30,8 +59,6 @@ volatile unsigned long lastPulseTime = 0;
 volatile unsigned long pulseInterval = 0;
 volatile bool lastDirectionForward = true;
 volatile bool newPulseDetected = false;
-
-const float circumference = 2.26;
 
 unsigned long lastBlinkTime = 0;
 const long blinkInterval = 500;
@@ -73,20 +100,24 @@ void setup() {
 
   BLEService *pService = pServer->createService(SERVICE_UUID);
 
-  pCharacteristic = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID,
-                      BLECharacteristic::PROPERTY_READ   |
-                      BLECharacteristic::PROPERTY_NOTIFY
-                    );
+  pCharacteristicTX = pService->createCharacteristic(
+                        CHARACTERISTIC_UUID_TX,
+                        BLECharacteristic::PROPERTY_READ   |
+                        BLECharacteristic::PROPERTY_NOTIFY
+                      );
+  pCharacteristicTX->addDescriptor(new BLE2902());
 
-  pCharacteristic->addDescriptor(new BLE2902());
+  pCharacteristicRX = pService->createCharacteristic(
+                        CHARACTERISTIC_UUID_RX,
+                        BLECharacteristic::PROPERTY_WRITE
+                      );
+  pCharacteristicRX->setCallbacks(new MyCharacteristicCallbacks());
 
   pService->start();
 
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   
-
   pAdvertising->setScanResponse(true); 
   pAdvertising->setMinPreferred(0x06);
   
@@ -111,27 +142,39 @@ void loop() {
 
   static unsigned long lastUpdate = 0;
   if (millis() - lastUpdate > 500) {
-    float speedKmh = 0;
     
-    if (pulseInterval > 0 && (millis() - lastPulseTime < 3000)) {
-       speedKmh = (circumference / (pulseInterval / 1000.0)) * 3.6;
-    }
-
-    float distanceKm = (pulseCount * circumference) / 1000.0;
-
-    String payload = "{";
-    payload += "\"speedKmh\":";
-    payload += String(speedKmh, 2);
-    payload += ",";
-    payload += "\"distanceKm\":";
-    payload += String(distanceKm, 2);
-    payload += "}";
-
     if (deviceConnected) {
-        pCharacteristic->setValue(payload.c_str());
-        pCharacteristic->notify();
-        Serial.print("Enviando datos por BLE: ");
+      if (waitingForAro) {
+        // Pedir el aro a la app mediante JSON
+        String requestPayload = "{\"request\":\"send_aro\"}";
+        pCharacteristicTX->setValue(requestPayload.c_str());
+        pCharacteristicTX->notify();
+        Serial.println("Esperando aro de la app...");
+      } 
+      else {
+        // Modo normal: Calcular y enviar velocidad/distancia
+        float speedKmh = 0;
+        
+        if (pulseInterval > 0 && (millis() - lastPulseTime < 3000)) {
+           speedKmh = (wheelCircumference / (pulseInterval / 1000.0)) * 3.6;
+        }
+
+        float distanceKm = (pulseCount * wheelCircumference) / 1000.0;
+
+        String payload = "{";
+        payload += "\"speedKmh\":";
+        payload += String(speedKmh, 2);
+        payload += ",";
+        payload += "\"distanceKm\":";
+        payload += String(distanceKm, 2);
+        payload += "}";
+
+        pCharacteristicTX->setValue(payload.c_str());
+        pCharacteristicTX->notify();
+        
+        Serial.print("Enviando datos: ");
         Serial.println(payload);
+      }
     }
     
     lastUpdate = millis();
