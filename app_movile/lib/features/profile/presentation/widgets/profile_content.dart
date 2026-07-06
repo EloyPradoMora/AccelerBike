@@ -4,7 +4,36 @@ import 'package:flutter/material.dart';
 
 
 
-Widget cardProfile(BuildContext context, String nombre, int distancia,
+Widget cardProfile(BuildContext context, String nombre) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(20.0),
+    decoration: BoxDecoration(
+      color: AppColors.darkGreen,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppColors.grey700),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(nombre,
+                style: const TextStyle(
+                    color: AppColors.grey200,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold
+                )
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget cardProfilePlus(BuildContext context, String nombre, int distancia,
     String tiempo, double avgSpeed) {
   var duracion = tiempo.split(':');
   return Container(
@@ -66,7 +95,6 @@ Widget cardProfile(BuildContext context, String nombre, int distancia,
     ),
   );
 }
-
 
 Widget cardDevice(String deviceName, bool isConnected) {
   final Color statusColor = isConnected ? AppColors.green : Colors.red;

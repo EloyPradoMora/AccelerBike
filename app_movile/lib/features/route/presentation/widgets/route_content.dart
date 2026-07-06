@@ -18,7 +18,7 @@ Widget progressInfo(
       const SizedBox(height: 24),
       TelemetryCard(
         title: 'Distancia',
-        value: '$distance',
+        value: distance.toStringAsFixed(2),
         unit: 'km',
         icon: Icons.route,
       ),
@@ -31,7 +31,7 @@ Widget progressInfo(
       const SizedBox(height: 16),
       TelemetryCard(
         title: 'Velocidad',
-        value: '$currentSpeed',
+        value: currentSpeed.toStringAsFixed(1),
         unit: 'km/h',
         icon: Icons.speed,
         valueColor: const Color(0xFF00E676),
@@ -40,7 +40,7 @@ Widget progressInfo(
       const SizedBox(height: 16),                
       TelemetryCard(
         title: 'Velocidad Máxima',
-        value: '$maxSpeed',
+        value: maxSpeed.toStringAsFixed(1),
         unit: 'km/h',
         icon: Icons.speed,
         valueColor: const Color(0xFFE65100), 
@@ -51,12 +51,10 @@ Widget progressInfo(
 
 
 Widget buttons(BuildContext context, {required VoidCallback onStop, bool isLoading = false}) {
-  // Hacer que ambos botones al momento de hacer clic den alguna señal de si funciono o no, puede ser un snack bar o algo similar
   return Row(
     children: [
       Expanded(
         child: FilledButton.icon(
-          // Cuando se hace clic en pausar despues ya no se puede hacer que vuelva a funcionar el cronometro
           onPressed: () {},
           icon: const Icon(Icons.pause, color: Colors.black),
           label: const Text('Pause',

@@ -1,5 +1,5 @@
 class TripStatistics {
-  final int weeklyDistance;
+  final double weeklyDistance;
   final int calories;
   final int goalPercentage;
   final bool isDeviceConnected;

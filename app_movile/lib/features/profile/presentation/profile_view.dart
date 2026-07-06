@@ -1,4 +1,5 @@
 import 'package:app_movile/core/ble/ble_state_notifier.dart';
+import 'package:app_movile/core/network/supabase_service.dart';
 import 'package:app_movile/features/profile/presentation/widgets/profile_content.dart';
 import 'package:flutter/material.dart';
 
@@ -10,10 +11,16 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
-  final String profileName = 'Alessandro Duarte';
-  final int targetDistance = 200;
-  final String targetDuration = '02:45';
-  final double avgSpeed = 26.4;
+  String _userName = 'Ciclista';
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+  Future<void> _loadUserName() async {
+    final name = await supabaseService.getUserName();
+    if (mounted) setState(() => _userName = name);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,8 +48,7 @@ class _ProfileViewState extends State<ProfileView> {
                             fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 16),
-                      cardProfile(context, profileName, targetDistance,
-                          targetDuration, avgSpeed),
+                      cardProfile(context, _userName),
                       const SizedBox(height: 24),
 
                       ListenableBuilder(

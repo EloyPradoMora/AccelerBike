@@ -95,7 +95,6 @@ import 'package:flutter/material.dart';
     );
   }
 
-  /// Tarjeta de métrica individual que clona exactamente el estilo de tu UI/UX
   Widget metricCard({
     required String title,
     required String value,
@@ -106,7 +105,7 @@ import 'package:flutter/material.dart';
       width: double.infinity,
       padding: const EdgeInsets.all(18.0),
       decoration: BoxDecoration(
-        color: const Color(0xFF13151A), // Fondo de las tarjetas del Figma
+        color: const Color(0xFF13151A),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.green, width: 1),
       ),
@@ -152,7 +151,6 @@ import 'package:flutter/material.dart';
                         color: Colors.white,
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        fontFamily: 'monospace', // Consistencia con fuentes estables de datos
                       ),
                     ),
                     const SizedBox(width: 6),

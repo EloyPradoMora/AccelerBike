@@ -9,6 +9,8 @@ import 'package:app_movile/features/route/data/thingsboard_service.dart';
 import 'package:app_movile/features/route/presentation/widgets/route_content.dart';
 import 'package:app_movile/core/widgets/top_bar.dart';
 import 'package:app_movile/core/widgets/nav_bar.dart';
+import 'package:app_movile/core/auth/auth_state_notifier.dart';
+import 'package:app_movile/core/network/supabase_service.dart';
 import 'package:flutter/material.dart';
 
 class RouteView extends StatefulWidget {
@@ -23,6 +25,7 @@ class _RouteViewState extends State<RouteView> with WidgetsBindingObserver {
   late final TelemetryRepository _repo;
   StreamSubscription<Telemetry>? _telemetrySub;
   final ThingsBoardService _thingsBoard = ThingsBoardService();
+  Timer? _clockTimer;
 
   Telemetry _telemetry = Telemetry.empty();
   double _maxSpeed = 0;
@@ -41,6 +44,9 @@ class _RouteViewState extends State<RouteView> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_){
+      if (mounted) setState(() {});
+    });
 
     _isBleConnected = BleStateNotifier.instance.isConnected;
     BleStateNotifier.instance.addListener(_onBleStateChanged);
@@ -146,6 +152,7 @@ class _RouteViewState extends State<RouteView> with WidgetsBindingObserver {
     BleStateNotifier.instance.removeListener(_onBleStateChanged);
     _disconnectionTimer?.cancel();
     _telemetrySub?.cancel();
+    _clockTimer?.cancel();
     _repo.dispose();
     super.dispose();
   }
@@ -168,19 +175,37 @@ class _RouteViewState extends State<RouteView> with WidgetsBindingObserver {
       durationSeconds: _stopwatch.elapsed.inSeconds,
     );
 
-    final success = await _thingsBoard.sendTripSummary(summary);
-    if (!mounted) return;
-
-    if (!success) {
-      setState(() => _isFinishing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'No se pudo enviar el resumen a ThingsBoard. Reintenta.')),
-      );
-      return;
-    }
+    unawaited(
+      Future.wait([
+        _thingsBoard.sendTripSummary(summary),
+        _saveToSupabase(summary),
+      ]).then((results) {
+        if (!mounted) return;
+        if (!results[0] && !results[1]) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Viaje finalizado. Sin conexión para sincronizar.')),
+          );
+        }
+      }).catchError((_) {}),
+    );
     Navigator.pop(context);
+  }
+
+  Future<bool> _saveToSupabase(TripSummary summary) async {
+    final userId = AuthStateNotifier.instance.userId;
+    if (userId == null) return true;
+    try {
+      await supabaseService.saveTrip(
+        userId: userId, 
+        totalDistance: summary.distanceKm, 
+        maxSpeed: summary.maxSpeedKmh, 
+        avgSpeed: summary.avgSpeedKmh, 
+        duration: summary.durationSeconds
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override

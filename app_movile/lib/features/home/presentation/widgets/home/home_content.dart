@@ -1,5 +1,4 @@
 import 'package:app_movile/core/theme/app_colors.dart';
-import 'package:app_movile/features/home/presentation/widgets/home/goal_card.dart';
 import 'package:app_movile/features/home/presentation/widgets/home/metric_card.dart';
 import 'package:flutter/material.dart';
 
@@ -20,38 +19,22 @@ Widget welcomeMessage(BuildContext context, bool isConnected) {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const TextSpan(text: 'y listo para un nuevo viaje.'),
+        TextSpan(text: isConnected ? 'y listo para un nuevo viaje.': 'comprueba la conexion del dispositivo.'),
       ],
     ),
   );
 }
 
-Widget metrics(BuildContext context, int weeklyDistance, String calories, int goalPercentage) {
+Widget metrics(BuildContext context, String weeklyDistance) {
   return Column(
     children: [
      MetricCard(
       title: 'Distancia Semanal',
-      value: '$weeklyDistance',
+      value: weeklyDistance,
       unit: 'km',
       icon: Icons.route, 
     ),
     const SizedBox(height: 16),
-    Row(
-    children: [
-      Expanded(
-        child: MetricCard(
-            title: 'Calorías',
-            value: calories,
-            unit: 'kcal',
-            icon: Icons.local_fire_department,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: GoalCard(percentage: goalPercentage),
-        ),
-      ],
-    ), 
     ]
   );
 }

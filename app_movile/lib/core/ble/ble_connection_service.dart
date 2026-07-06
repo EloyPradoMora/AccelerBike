@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum BleConnectionStatus { disconnected, scanning, connecting, connected, error }
 
@@ -113,11 +114,7 @@ class BleConnectionService {
       }
     });
 
-    await device.connect(
-      license: License.nonprofit,
-      timeout: const Duration(seconds: 10)
-    );
-
+    await device.connect(license: License.nonprofit ,timeout: const Duration(seconds: 10));
     if (!kIsWeb && Platform.isAndroid) {
       await device.requestMtu(247);
     }
@@ -129,16 +126,36 @@ class BleConnectionService {
 
     await characteristic.setNotifyValue(true);
     await _valueSub?.cancel();
-    _valueSub = characteristic.lastValueStream.listen((bytes) {
+
+    _valueSub = characteristic.onValueReceived.listen((bytes) async {
       if (bytes.isEmpty) return;
+
       try {
-        _rawDataController.add(utf8.decode(bytes));
+        final receivedString = utf8.decode(bytes);
+
+        if (receivedString.contains('"request":"send_aro"')) {
+          final prefs = await SharedPreferences.getInstance();
+          final savedRadius = prefs.getDouble('wheel_radius') ?? 29.0;
+
+          final rxChar = service.characteristics.firstWhere(
+            (c) => c.uuid == Guid('beb5483e-36e1-4688-b7f5-ea07361b26a9'),
+            orElse: () => throw StateError('RX characteristic no encontrada'),
+          );
+
+          await rxChar.write(
+            utf8.encode(savedRadius.toString()),
+            withoutResponse: false,
+          );
+          return;
+        }
+        _rawDataController.add(receivedString);
       } catch (_) { }
     });
 
     _reconnectAttempt = 0;
     _updateStatus(BleConnectionStatus.connected);
   }
+
 
   void _scheduleReconnect() {
     if (!_shouldStayConnected) return;
