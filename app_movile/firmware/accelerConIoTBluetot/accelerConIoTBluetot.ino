@@ -31,22 +31,27 @@ class MyServerCallbacks: public BLEServerCallbacks {
 class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pChar) {
       std::string rxValue = pChar->getValue();
+      float newAro = 0.0;
+      
       if (rxValue.length() > 0) {
         String valueStr = String(rxValue.c_str());
-        float newAro = valueStr.toFloat();
-        
-        if (newAro > 0) {
-          currentAro = newAro;
-          wheelCircumference = currentAro * 0.0254 * PI;
-          waitingForAro = false;
-          
-          Serial.print("Nuevo aro recibido: ");
-          Serial.print(currentAro);
-          Serial.print("\" -> Circunferencia: ");
-          Serial.print(wheelCircumference);
-          Serial.println(" m");
-        }
+        newAro = valueStr.toFloat();
       }
+      
+      if (newAro <= 0.0) {
+        newAro = 35.0;
+        Serial.println("Advertencia: Valor nulo o cero recibido. Aplicando aro de fallback (35.0\").");
+      }
+      
+      currentAro = newAro;
+      wheelCircumference = currentAro * 0.0254 * PI;
+      waitingForAro = false;
+      
+      Serial.print("Aro configurado: ");
+      Serial.print(currentAro);
+      Serial.print("\" -> Circunferencia: ");
+      Serial.print(wheelCircumference);
+      Serial.println(" m");
     }
 };
 
